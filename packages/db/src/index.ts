@@ -4,3 +4,5 @@ export * from "./repositories";
 export * from "./seeds";
 export * from "./services";
 export * from "./lifecycle";
+export * from "./factory";
+export * from "./firestore";
