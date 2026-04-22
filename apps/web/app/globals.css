@@ -1,0 +1,270 @@
+@import "@ustaca/ui/theme.css";
+
+body.web-body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(176, 38, 255, 0.2), transparent 26%),
+    radial-gradient(circle at 80% 15%, rgba(0, 229, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 70% 80%, rgba(217, 164, 0, 0.1), transparent 18%),
+    linear-gradient(180deg, #07070b 0%, #090714 100%);
+}
+
+.marketing-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 24px 88px;
+}
+
+.marketing-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 0 36px;
+}
+
+.marketing-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.marketing-brand__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(46, 242, 255, 0.18) 70%);
+  box-shadow: 0 0 28px rgba(46, 242, 255, 0.72);
+}
+
+.marketing-brand__copy p,
+.hero-copy p,
+.surface-copy,
+.roadmap-card li,
+.surface-meta {
+  color: var(--text-muted);
+}
+
+.marketing-brand__copy p,
+.marketing-brand__copy h1 {
+  margin: 0;
+}
+
+.marketing-brand__copy p,
+.eyebrow {
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.marketing-brand__copy h1,
+.hero-copy h2,
+.section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.marketing-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.marketing-nav a {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(176, 38, 255, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.marketing-nav a:hover {
+  border-color: rgba(0, 229, 255, 0.36);
+  background: rgba(176, 38, 255, 0.08);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 22px;
+  align-items: stretch;
+}
+
+.hero-panel {
+  padding: 32px;
+}
+
+.hero-copy h2 {
+  font-size: clamp(2.6rem, 6vw, 5rem);
+  max-width: 760px;
+}
+
+.hero-copy p {
+  max-width: 680px;
+  line-height: 1.72;
+  font-size: 1.06rem;
+}
+
+.hero-pills,
+.addon-pills,
+.notification-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.hero-pills span,
+.addon-pills span,
+.notification-pills span {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(176, 38, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.marketing-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.section-title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.surface-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.feature-card,
+.roadmap-card,
+.theme-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(176, 38, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px;
+}
+
+.feature-card h3,
+.theme-card h3,
+.roadmap-card h3,
+.roadmap-card p {
+  margin: 0;
+}
+
+.feature-card p,
+.theme-card p,
+.roadmap-card li {
+  line-height: 1.6;
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.roadmap-card ul {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.roadmap-card__range {
+  display: inline-flex;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(46, 242, 255, 0.08);
+  color: var(--accent);
+}
+
+.cta-banner {
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  border: 1px solid rgba(176, 38, 255, 0.18);
+  background: linear-gradient(135deg, rgba(176, 38, 255, 0.1), rgba(255, 255, 255, 0.03));
+}
+
+.page-hero {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.price-grid,
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.price-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(176, 38, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 22px;
+}
+
+.price-card h3,
+.price-card p {
+  margin: 0;
+}
+
+.price-card ul {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.price-card__tag {
+  display: inline-flex;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(217, 164, 0, 0.14);
+  color: #ffd76b;
+}
+
+.faq-grid .surface-card {
+  height: 100%;
+}
+
+.surface-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .hero-grid,
+  .surface-grid,
+  .roadmap-grid,
+  .price-grid,
+  .faq-grid,
+  .surface-grid--two {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .marketing-shell {
+    padding: 18px 16px 72px;
+  }
+
+  .marketing-header,
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

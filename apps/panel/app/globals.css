@@ -1,0 +1,65 @@
+@import "@ustaca/ui/theme.css";
+
+body.panel-body {
+  background:
+    radial-gradient(circle at left top, rgba(176, 38, 255, 0.16), transparent 28%),
+    radial-gradient(circle at right center, rgba(0, 229, 255, 0.12), transparent 22%),
+    radial-gradient(circle at bottom left, rgba(217, 164, 0, 0.08), transparent 20%),
+    linear-gradient(180deg, #07070b 0%, #090812 100%);
+}
+
+body.panel-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 90px 90px;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, black 38%, transparent 92%);
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel-mini-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(124, 155, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 18px;
+}
+
+.panel-mini-card h3,
+.cell-stack strong {
+  margin: 0;
+}
+
+.panel-mini-card p,
+.cell-muted,
+.help-copy {
+  color: var(--text-muted);
+}
+
+.cell-stack {
+  display: grid;
+  gap: 6px;
+}
+
+.cell-muted {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.help-copy {
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+}

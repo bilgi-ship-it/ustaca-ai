@@ -1,0 +1,21 @@
+{
+  "name": "@ustaca/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ustaca/ai": "0.1.0",
+    "@ustaca/config": "0.1.0",
+    "@ustaca/email": "0.1.0",
+    "@ustaca/ui": "0.1.0",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

@@ -1,0 +1,94 @@
+@import "@ustaca/ui/theme.css";
+
+body.admin-body {
+  background:
+    radial-gradient(circle at top left, rgba(176, 38, 255, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(0, 229, 255, 0.12), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(217, 164, 0, 0.08), transparent 22%),
+    linear-gradient(180deg, #07070b 0%, #0a0914 100%);
+}
+
+body.admin-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+  pointer-events: none;
+}
+
+.route-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mini-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(124, 155, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 18px;
+}
+
+.mini-card h3,
+.cell-stack strong {
+  margin: 0;
+}
+
+.mini-card p,
+.cell-muted,
+.note-list li,
+.rule-copy {
+  color: var(--text-muted);
+}
+
+.cell-stack {
+  display: grid;
+  gap: 6px;
+}
+
+.cell-muted {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.note-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.text-link {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.text-link:hover {
+  color: #ffffff;
+}
+
+.detail-hero {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.rule-copy {
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (max-width: 1100px) {
+  .route-grid {
+    grid-template-columns: 1fr;
+  }
+}
