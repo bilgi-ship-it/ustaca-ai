@@ -63,7 +63,17 @@ export default async function PaymentsPage() {
                 render: (row) => (
                   <div className="cell-stack">
                     <StatusBadge label={row.verificationLabel} tone={row.verificationTone} />
-                    <span className="cell-muted">{row.orderId}</span>
+                    <span className="cell-muted">{row.verifiedBy}</span>
+                  </div>
+                )
+              },
+              {
+                key: "activation",
+                header: "Aktivasyon Ops",
+                render: (row) => (
+                  <div className="cell-stack">
+                    <StatusBadge label={row.activationLabel} tone={row.activationTone} />
+                    <span className="cell-muted">{row.activationHoldReason}</span>
                   </div>
                 )
               },
@@ -80,6 +90,7 @@ export default async function PaymentsPage() {
                     <a className="text-link" href={row.href}>
                       Musteriyi ac
                     </a>
+                    <span className="cell-muted">{row.orderId}</span>
                     <span className="cell-muted">{row.actionLabel}</span>
                   </div>
                 )

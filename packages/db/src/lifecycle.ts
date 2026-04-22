@@ -50,6 +50,13 @@ type PaymentVerificationInput = {
   summary?: string;
   verifiedAt?: string | null;
   rawResponse?: unknown;
+  manualNote?: string;
+};
+
+type GoLiveApprovalInput = {
+  paymentId: string;
+  summary?: string;
+  manualNote?: string;
 };
 
 type DomainRequestInput = {
@@ -70,6 +77,35 @@ type DomainRegisteredInput = {
   registrar?: string;
   expiresAt?: string;
   sslEnabled?: boolean;
+};
+
+type PaymentOperationalFields = Partial<{
+  payment_workflow_status: string;
+  activation_ops_status: "not_ready" | "activation_pending_ops" | "activation_completed";
+  payment_verification_status: "unverified" | "pending_api_check" | "verified" | "manual_review" | "failed";
+  payment_verification_source: "api" | "manual" | null;
+  payment_order_id: string | null;
+  payment_verification_summary: string;
+  payment_verified_at: string | null;
+  payment_last_checked_at: string | null;
+  payment_verification_raw: unknown;
+  activation_ready_at: string | null;
+  activation_completed_at: string | null;
+  verified_by_user_id: string | null;
+  verified_by_role: AuditLogDocument["actorRole"] | null;
+  manual_note: string;
+}>;
+
+const getPaymentOperationalFields = (payment: PaymentDocument) =>
+  payment as PaymentDocument & PaymentOperationalFields;
+
+const trimToNull = (value?: string | null) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 const appendAudit = async (
@@ -191,7 +227,7 @@ const enqueueNotification = async (
       eventName: params.eventName,
       channel: "email",
       recipient: params.customer.contact.email,
-      subject: params.eventName.replaceAll("_", " "),
+      subject: params.eventName.replaceAll(".", " ").replaceAll("_", " "),
       customerId: params.customer.id,
       siteId: params.siteId ?? params.customer.site_id ?? null,
       payload: params.payload,
@@ -298,7 +334,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     );
 
     await enqueueNotification(repositories, {
-      eventName: "trial_started",
+      eventName: "trial.started",
       customer,
       siteId: site.id,
       payload: { trialId, endsAt, days },
@@ -343,7 +379,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     );
 
     await enqueueNotification(repositories, {
-      eventName: "trial_expired",
+      eventName: "trial.expired",
       customer,
       siteId: site.id,
       payload: { trialId },
@@ -363,9 +399,11 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     return { trial: updatedTrial, changed: true as const };
   };
 
-  const convertTrialToActive = async (
+  const convertTrialForPayment = async (
     trialId: string,
-    audit: LifecycleAuditOptions = {}
+    timestamp: string,
+    audit: LifecycleAuditOptions = {},
+    summary = "Trial odeme ile donustu; yayin aktivasyonu ops onayinda."
   ) => {
     const trial = await repositories.trials.getById(trialId);
     if (!trial) {
@@ -376,16 +414,97 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       return { trial, changed: false as const };
     }
 
-    const timestamp = nowIso();
     const updatedTrial = setTrialStatus(trial, "converted", timestamp, {
       convertedAt: timestamp
     });
     await repositories.trials.upsert(updatedTrial);
 
-    const customer = await requireCustomer(trial.customer_id);
-    await repositories.customers.upsert(setCustomerStatus(customer, "active", timestamp));
+    await appendAudit(repositories, {
+      action: "trial.converted",
+      customerId: trial.customer_id,
+      siteId: trial.site_id,
+      targetCollection: "trials",
+      targetId: trialId,
+      summary,
+      ...audit
+    });
 
-    const site = await requireSite(trial.site_id);
+    return { trial: updatedTrial, changed: true as const };
+  };
+
+  const approveGoLive = async (
+    input: GoLiveApprovalInput,
+    audit: LifecycleAuditOptions = {}
+  ) => {
+    const payment = await requirePayment(input.paymentId);
+    const paymentOps = getPaymentOperationalFields(payment);
+    const customer = await requireCustomer(payment.customer_id);
+    const site = await requireSite(payment.site_id);
+    const timestamp = nowIso();
+    const trimmedNote = trimToNull(input.manualNote);
+
+    const customerAlreadyLive = customer.customer_status === "active" && customer.active_trial_id === null;
+    const siteAlreadyLive =
+      site.site_status === "active" && site.suspendedAt === null && site.publishedAt !== null;
+    const activationAlreadyCompleted =
+      paymentOps.activation_ops_status === "activation_completed" &&
+      paymentOps.activation_completed_at !== null;
+
+    if (activationAlreadyCompleted && customerAlreadyLive && siteAlreadyLive) {
+      return { payment, changed: false as const };
+    }
+
+    const isPaymentConfirmed =
+      payment.payment_status === "paid" &&
+      (paymentOps.payment_workflow_status === "payment_confirmed" ||
+        paymentOps.activation_ops_status === "activation_completed");
+
+    if (!isPaymentConfirmed) {
+      throw new Error("Go-live onayi icin once odeme dogrulanmali.");
+    }
+
+    if (
+      paymentOps.activation_ops_status !== "activation_pending_ops" &&
+      paymentOps.activation_ops_status !== "activation_completed"
+    ) {
+      throw new Error("Bu odeme henuez yayin acilisina hazir degil.");
+    }
+
+    const activeTrial =
+      customer.active_trial_id
+        ? await repositories.trials.getById(customer.active_trial_id)
+        : await repositories.trials.getActiveByCustomerId(customer.id);
+
+    if (activeTrial && canTransitionTrial(activeTrial.trial_status, "converted")) {
+      await convertTrialForPayment(activeTrial.id, timestamp, audit, "Trial go-live onayi ile ucretli duruma tasindi.");
+    }
+
+    const updatedPayment = setPaymentStatus(payment, "paid", timestamp, {
+      paidAt: payment.paidAt ?? timestamp,
+      paidAmount: payment.totalAmount,
+      installmentsPaid: payment.installmentsTotal,
+      is_overdue: false,
+      suspendedAt: null,
+      payment_workflow_status:
+        paymentOps.payment_workflow_status === "payment_confirmed" ? "payment_confirmed" : "payment_confirmed",
+      activation_ops_status: "activation_completed",
+      activation_ready_at: paymentOps.activation_ready_at ?? payment.paidAt ?? timestamp,
+      activation_completed_at: paymentOps.activation_completed_at ?? timestamp,
+      verified_by_user_id: paymentOps.verified_by_user_id ?? audit.actorUserId ?? null,
+      verified_by_role: paymentOps.verified_by_role ?? audit.actorRole ?? null,
+      manual_note: trimmedNote ?? paymentOps.manual_note ?? ""
+    } as Partial<PaymentDocument>);
+    await repositories.payments.upsert(updatedPayment);
+
+    await repositories.customers.upsert(
+      setCustomerStatus(customer, "active", timestamp, {
+        active_payment_id: payment.id,
+        activePaymentId: payment.id,
+        active_trial_id: null,
+        activeTrialId: null
+      })
+    );
+
     await repositories.sites.upsert(
       setSiteStatus(site, "active", timestamp, {
         publishedAt: site.publishedAt ?? timestamp,
@@ -393,17 +512,57 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       })
     );
 
-    await appendAudit(repositories, {
-      action: "trial.converted",
-      customerId: customer.id,
+    await enqueueNotification(repositories, {
+      eventName: "site.activated",
+      customer,
       siteId: site.id,
-      targetCollection: "trials",
-      targetId: trialId,
-      summary: "Trial odeme ile aktiflestirildi.",
-      ...audit
+      payload: { paymentId: payment.id },
+      now: timestamp
     });
 
-    return { trial: updatedTrial, changed: true as const };
+    await appendAudit(repositories, {
+      action: "site.activated",
+      customerId: customer.id,
+      siteId: site.id,
+      targetCollection: "payments",
+      targetId: payment.id,
+      summary: input.summary ?? "Odeme onayi sonrasinda yayin aktiflestirildi.",
+      metadata: {
+        paymentId: payment.id,
+        activationOpsStatusBefore: paymentOps.activation_ops_status ?? "not_ready",
+        ...(audit.metadata ?? {})
+      },
+      actorUserId: audit.actorUserId,
+      actorRole: audit.actorRole
+    });
+
+    return { payment: updatedPayment, changed: true as const };
+  };
+
+  const convertTrialToActive = async (
+    trialId: string,
+    audit: LifecycleAuditOptions = {}
+  ) => {
+    const trial = await repositories.trials.getById(trialId);
+    if (!trial) {
+      throw new Error(`Trial bulunamadi: ${trialId}`);
+    }
+
+    const payment = await repositories.payments.getLatestByCustomer(trial.customer_id);
+    if (!payment) {
+      throw new Error("Trial'i aktiflestirmek icin odeme kaydi bulunamadi.");
+    }
+
+    const result = await approveGoLive(
+      {
+        paymentId: payment.id,
+        summary: "Trial dogrudan aktivasyon yerine go-live onayi ile acildi."
+      },
+      audit
+    );
+
+    const updatedTrial = await repositories.trials.getById(trialId);
+    return { trial: updatedTrial ?? trial, changed: result.changed };
   };
 
   const suspendCustomer = async (
@@ -413,18 +572,27 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
   ) => {
     const customer = await requireCustomer(customerId);
     const timestamp = nowIso();
+    const site = customer.site_id ? await requireSite(customer.site_id) : null;
+    const customerNeedsUpdate = customer.customer_status !== "suspended";
+    const siteNeedsUpdate = site ? site.site_status !== "suspended" || site.suspendedAt === null : false;
 
-    await repositories.customers.upsert(setCustomerStatus(customer, "suspended", timestamp));
+    if (!customerNeedsUpdate && !siteNeedsUpdate) {
+      return { customer, changed: false as const };
+    }
 
-    if (customer.site_id) {
-      const site = await requireSite(customer.site_id);
+    const nextCustomer = customerNeedsUpdate
+      ? setCustomerStatus(customer, "suspended", timestamp)
+      : customer;
+    await repositories.customers.upsert(nextCustomer);
+
+    if (site && siteNeedsUpdate) {
       await repositories.sites.upsert(
         setSiteStatus(site, "suspended", timestamp, { suspendedAt: timestamp })
       );
     }
 
     await enqueueNotification(repositories, {
-      eventName: "site_suspended",
+      eventName: "site.suspended",
       customer,
       payload: { reason },
       now: timestamp
@@ -442,7 +610,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       actorRole: audit.actorRole
     });
 
-    return { customer };
+    return { customer: nextCustomer, changed: true as const };
   };
 
   const reactivateCustomer = async (
@@ -450,12 +618,30 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     audit: LifecycleAuditOptions = {}
   ) => {
     const customer = await requireCustomer(customerId);
+    const latestPayment = await repositories.payments.getLatestByCustomer(customerId);
+    const latestPaymentOps = latestPayment ? getPaymentOperationalFields(latestPayment) : null;
+
+    if (latestPaymentOps?.activation_ops_status === "activation_pending_ops") {
+      throw new Error("Bu kayit icin once go-live onayi verilmelidir.");
+    }
+
     const timestamp = nowIso();
+    const site = customer.site_id ? await requireSite(customer.site_id) : null;
+    const customerNeedsUpdate = customer.customer_status !== "active";
+    const siteNeedsUpdate = site
+      ? site.site_status !== "active" || site.suspendedAt !== null || site.publishedAt === null
+      : false;
 
-    await repositories.customers.upsert(setCustomerStatus(customer, "active", timestamp));
+    if (!customerNeedsUpdate && !siteNeedsUpdate) {
+      return { customer, changed: false as const };
+    }
 
-    if (customer.site_id) {
-      const site = await requireSite(customer.site_id);
+    const nextCustomer = customerNeedsUpdate
+      ? setCustomerStatus(customer, "active", timestamp)
+      : customer;
+    await repositories.customers.upsert(nextCustomer);
+
+    if (site && siteNeedsUpdate) {
       await repositories.sites.upsert(
         setSiteStatus(site, "active", timestamp, {
           suspendedAt: null,
@@ -474,7 +660,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       ...audit
     });
 
-    return { customer };
+    return { customer: nextCustomer, changed: true as const };
   };
 
   const recordPaymentVerification = async (
@@ -482,7 +668,23 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     audit: LifecycleAuditOptions = {}
   ) => {
     const payment = await requirePayment(input.paymentId);
+    const paymentOps = getPaymentOperationalFields(payment);
     const timestamp = nowIso();
+    const trimmedNote = trimToNull(input.manualNote);
+    const wasVerified =
+      payment.payment_status === "paid" && paymentOps.payment_workflow_status === "payment_confirmed";
+
+    if (
+      !input.verified &&
+      (paymentOps.activation_ops_status === "activation_completed" || wasVerified)
+    ) {
+      return {
+        payment,
+        verificationState: paymentOps.payment_verification_status ?? "verified",
+        workflowStatus: paymentOps.payment_workflow_status ?? "payment_confirmed"
+      };
+    }
+
     const verifiedAt = input.verified ? input.verifiedAt ?? timestamp : null;
     const verificationState = input.verified
       ? "verified"
@@ -493,26 +695,46 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       ? "payment_confirmed"
       : input.source === "manual"
         ? "payment_under_review"
-        : payment.payment_status;
+        : paymentOps.payment_workflow_status ?? payment.payment_status;
+    const activationOpsStatus = input.verified
+      ? paymentOps.activation_ops_status === "activation_completed"
+        ? "activation_completed"
+        : "activation_pending_ops"
+      : paymentOps.activation_ops_status ?? "not_ready";
 
     const nextStatus: PaymentStatus = input.verified ? "paid" : payment.payment_status;
     const extraFields = {
       payment_workflow_status: workflowStatus,
+      activation_ops_status: activationOpsStatus,
       payment_verification_status: verificationState,
       payment_verification_source: input.source,
-      payment_order_id: input.orderId ?? null,
+      payment_order_id: trimToNull(input.orderId),
       payment_verification_summary:
         input.summary ?? (input.verified ? "Dogrulama basarili" : "Manuel inceleme gerekli"),
       payment_verified_at: verifiedAt,
       payment_last_checked_at: timestamp,
-      payment_verification_raw: input.rawResponse ?? null
+      payment_verification_raw: input.rawResponse ?? null,
+      activation_ready_at:
+        input.verified
+          ? paymentOps.activation_ready_at ?? verifiedAt
+          : paymentOps.activation_ready_at ?? null,
+      activation_completed_at:
+        activationOpsStatus === "activation_completed"
+          ? paymentOps.activation_completed_at ?? timestamp
+          : null,
+      verified_by_user_id:
+        input.verified ? audit.actorUserId ?? paymentOps.verified_by_user_id ?? null : paymentOps.verified_by_user_id ?? null,
+      verified_by_role:
+        input.verified ? audit.actorRole ?? paymentOps.verified_by_role ?? null : paymentOps.verified_by_role ?? null,
+      manual_note: trimmedNote ?? paymentOps.manual_note ?? ""
     } as unknown as Partial<PaymentDocument>;
 
     const updated = setPaymentStatus(payment, nextStatus, timestamp, {
-      paidAt: input.verified ? verifiedAt : payment.paidAt,
+      paidAt: input.verified ? payment.paidAt ?? verifiedAt : payment.paidAt,
       paidAmount: input.verified ? payment.totalAmount : payment.paidAmount,
       installmentsPaid: input.verified ? payment.installmentsTotal : payment.installmentsPaid,
       is_overdue: input.verified ? false : payment.is_overdue,
+      suspendedAt: input.verified ? null : payment.suspendedAt,
       ...extraFields
     });
 
@@ -520,27 +742,38 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
 
     const customer = await requireCustomer(payment.customer_id);
 
-    if (input.verified) {
+    if (input.verified && !wasVerified) {
       await enqueueNotification(repositories, {
-        eventName: "payment_received",
+        eventName: "payment.received",
         customer,
         siteId: payment.site_id,
-        payload: { paymentId: payment.id, orderId: input.orderId ?? null, source: input.source },
+        payload: { paymentId: payment.id, orderId: trimToNull(input.orderId), source: input.source },
         now: timestamp
       });
+    }
 
-      if (customer.active_trial_id) {
-        await convertTrialToActive(customer.active_trial_id, {
-          actorUserId: audit.actorUserId,
-          actorRole: audit.actorRole
-        });
-      } else {
-        await repositories.customers.upsert(setCustomerStatus(customer, "active", timestamp));
+    if (input.verified && activationOpsStatus !== "activation_completed") {
+      const activeTrial =
+        customer.active_trial_id
+          ? await repositories.trials.getById(customer.active_trial_id)
+          : await repositories.trials.getActiveByCustomerId(customer.id);
+
+      if (activeTrial && canTransitionTrial(activeTrial.trial_status, "converted")) {
+        await convertTrialForPayment(activeTrial.id, timestamp, audit);
       }
+
+      await repositories.customers.upsert(
+        setCustomerStatus(customer, "payment_waiting", timestamp, {
+          active_payment_id: payment.id,
+          activePaymentId: payment.id,
+          active_trial_id: null,
+          activeTrialId: null
+        })
+      );
     }
 
     await appendAudit(repositories, {
-      action: input.verified ? "payment.verified" : "payment.review_pending",
+      action: input.verified ? "payment.received" : "payment.review_pending",
       customerId: customer.id,
       siteId: payment.site_id,
       targetCollection: "payments",
@@ -548,8 +781,9 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       summary: input.summary ?? (input.verified ? "Odeme dogrulandi" : "Odeme manuel incelemede"),
       metadata: {
         source: input.source,
-        orderId: input.orderId ?? null,
+        orderId: trimToNull(input.orderId),
         verificationState,
+        activationOpsStatus,
         ...(audit.metadata ?? {})
       },
       actorUserId: audit.actorUserId,
@@ -561,6 +795,14 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
 
   const markPaymentPastDue = async (paymentId: string, audit: LifecycleAuditOptions = {}) => {
     const payment = await requirePayment(paymentId);
+    if (
+      payment.payment_status === "past_due" ||
+      payment.payment_status === "paid" ||
+      payment.payment_status === "cancelled"
+    ) {
+      return { payment, changed: false as const };
+    }
+
     const timestamp = nowIso();
 
     const updated = setPaymentStatus(payment, "past_due", timestamp, {
@@ -571,11 +813,21 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
 
     const customer = await requireCustomer(payment.customer_id);
     await enqueueNotification(repositories, {
-      eventName: "payment_past_due",
+      eventName: "payment.past_due",
       customer,
       siteId: payment.site_id,
       payload: { paymentId: payment.id, dueAt: payment.dueAt },
       now: timestamp
+    });
+
+    await suspendCustomer(customer.id, `payment_overdue:${payment.id}`, {
+      actorUserId: audit.actorUserId,
+      actorRole: audit.actorRole,
+      metadata: {
+        paymentId: payment.id,
+        dueAt: payment.dueAt,
+        ...(audit.metadata ?? {})
+      }
     });
 
     await appendAudit(repositories, {
@@ -588,7 +840,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
       ...audit
     });
 
-    return { payment: updated };
+    return { payment: updated, changed: true as const };
   };
 
   const submitDomainRequest = async (
@@ -698,7 +950,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
     if (!input.available) {
       const customer = await requireCustomer(domain.customer_id);
       await enqueueNotification(repositories, {
-        eventName: "domain_issue_detected",
+        eventName: "domain.issue_detected",
         customer,
         siteId: domain.site_id,
         payload: { domainId: domain.id, hostname: domain.requestedHostname },
@@ -772,6 +1024,7 @@ export const createLifecycleService = (repositories: UstacaRepositoryBundle) => 
   return {
     startTrial,
     expireTrial,
+    approveGoLive,
     convertTrialToActive,
     suspendCustomer,
     reactivateCustomer,

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { DataTable, InfoList, StatusBadge, SurfaceCard } from "@ustaca/ui";
 
 import {
+  approveGoLiveAction,
   checkDomainAvailabilityAction,
-  convertTrialAction,
   expireTrialAction,
   manualConfirmPaymentAction,
   markPaymentPastDueAction,
@@ -176,19 +176,15 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
 
           {detail.ids.trialId ? (
             <div className="form-stack">
-              <form action={convertTrialAction}>
-                <input name="trialId" type="hidden" value={detail.ids.trialId} />
-                <button className="button-primary" type="submit">
-                  Trial'i aktiflestir
-                </button>
-              </form>
               <form action={expireTrialAction}>
                 <input name="trialId" type="hidden" value={detail.ids.trialId} />
                 <button className="button-secondary" type="submit">
                   Trial'i sonlandir
                 </button>
               </form>
-              <span className="cell-muted">Mevcut trial: {detail.ids.trialStatus ?? "-"}</span>
+              <span className="cell-muted">
+                Mevcut trial: {detail.ids.trialStatus ?? "-"} · go-live acilisi odeme onayi sonrasi ayrica verilir
+              </span>
             </div>
           ) : (
             <div className="cell-stack">
@@ -210,6 +206,10 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               <div className="field">
                 <label>Plan tier (API)</label>
                 <input defaultValue="standard" name="tier" />
+              </div>
+              <div className="field">
+                <label>Ops notu</label>
+                <input name="manualNote" placeholder="API kontrol kaydi" />
               </div>
               <button className="button-primary" type="submit">
                 API ile dogrula
@@ -233,6 +233,10 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
                 <label>Ozet</label>
                 <input name="summary" placeholder="Banka havalesi dogrulandi" />
               </div>
+              <div className="field">
+                <label>Ops notu</label>
+                <input name="manualNote" placeholder="Eksik evrak yok, yayina hazir" />
+              </div>
               <div className="button-row">
                 <button className="button-primary" type="submit">
                   Manuel kaydet
@@ -240,12 +244,29 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               </div>
             </form>
 
-            <form action={markPaymentPastDueAction}>
-              <input name="paymentId" type="hidden" value={detail.ids.paymentId} />
-              <button className="button-secondary" type="submit">
-                Gecikmeye dustu olarak isaretle
-              </button>
-            </form>
+            <div className="form-stack">
+              <form action={approveGoLiveAction} className="form-stack">
+                <input name="paymentId" type="hidden" value={detail.ids.paymentId} />
+                <div className="field">
+                  <label>Go-live notu</label>
+                  <input name="manualNote" placeholder="Icerik ve yayin kontrolu tamam" />
+                </div>
+                <div className="field">
+                  <label>Ozet</label>
+                  <input name="summary" placeholder="Go-live onayi verildi" />
+                </div>
+                <button className="button-primary" type="submit">
+                  Go-live onayi ver
+                </button>
+              </form>
+
+              <form action={markPaymentPastDueAction}>
+                <input name="paymentId" type="hidden" value={detail.ids.paymentId} />
+                <button className="button-secondary" type="submit">
+                  Gecikmeye dustu olarak isaretle
+                </button>
+              </form>
+            </div>
           </div>
         ) : null}
 

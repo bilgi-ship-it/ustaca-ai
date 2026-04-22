@@ -10,9 +10,12 @@
     "firebase-admin": "^12.7.0",
     "zod": "^3.24.4"
   },
+  "devDependencies": {
+    "tsx": "^4.19.3"
+  },
   "scripts": {
     "lint": "eslint .",
+    "test": "node --import tsx --test src/lifecycle.activation.test.ts",
     "typecheck": "tsc --noEmit"
   }
 }
-

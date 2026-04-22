@@ -49,6 +49,89 @@ const getPrimaryDomain = (workspace: CustomerWorkspace) => workspace.domains[0] 
 const getAnnualPayment = (workspace: CustomerWorkspace) =>
   workspace.payments.find((payment) => payment.billingModel === "annual") ?? workspace.payments[0] ?? null;
 
+const getVerificationMilestone = (payment: CustomerWorkspace["payments"][number] | null) => {
+  if (!payment) {
+    return {
+      value: "Odeme kontrolu bekleniyor",
+      hint: "Odeme kaydi olustugunda kontrol bilgisi burada gorunur.",
+      tone: "warning" as const
+    };
+  }
+
+  if (payment.verificationStatus === "verified") {
+    return {
+      value: "Odemen kontrol edildi",
+      hint: payment.verifiedAt
+        ? `Kontrol tarihi: ${fullDate.format(new Date(payment.verifiedAt))}`
+        : "Odeme kaydin operasyon ekibi tarafindan onaylandi.",
+      tone: "positive" as const
+    };
+  }
+
+  if (payment.status === "past_due") {
+    return {
+      value: "Odeme gecikmede",
+      hint: "Odeme netlestiginde ayni kayit uzerinden devam edilir.",
+      tone: "critical" as const
+    };
+  }
+
+  if (
+    payment.verificationStatus === "manual_review" ||
+    payment.verificationStatus === "pending_api_check"
+  ) {
+    return {
+      value: "Odeme kontrol ediliyor",
+      hint: "Kontrol tamamlandiginda burada bilgilendirme guncellenir.",
+      tone: "warning" as const
+    };
+  }
+
+  return {
+    value: "Odeme kontrolu bekleniyor",
+    hint: "Odeme onayi gelince yayin acilis hazirligina gecilir.",
+    tone: "warning" as const
+  };
+};
+
+const getActivationMilestone = (
+  workspace: CustomerWorkspace,
+  payment: CustomerWorkspace["payments"][number] | null
+) => {
+  if (workspace.site.activationState === "active" || payment?.activationOpsStatus === "activation_completed") {
+    return {
+      value: "Yayin aktif",
+      hint:
+        payment?.activationCompletedAt
+          ? `Aktivasyon tarihi: ${fullDate.format(new Date(payment.activationCompletedAt))}`
+          : "Siten canli yayinda.",
+      tone: "positive" as const
+    };
+  }
+
+  if (payment?.activationOpsStatus === "activation_pending_ops") {
+    return {
+      value: "Odeme alindi, yayin hazirligi suruyor",
+      hint: "Son kontroller tamamlandiginda canliya alinacaksin.",
+      tone: "warning" as const
+    };
+  }
+
+  if (workspace.site.activationState === "suspended" || payment?.status === "past_due") {
+    return {
+      value: "Yayin beklemede",
+      hint: "Odeme ve operasyon adimi netlestiginde kaldigi yerden devam eder.",
+      tone: "critical" as const
+    };
+  }
+
+  return {
+    value: "Aktivasyon sirada",
+    hint: "Odeme kontrolden sonra yayin acilisi planlanir.",
+    tone: "accent" as const
+  };
+};
+
 const getOpenSupportCount = (workspace: CustomerWorkspace) =>
   workspace.supportTickets.filter(
     (ticket) => ticket.status !== "resolved" && ticket.status !== "closed"
@@ -150,6 +233,8 @@ export const buildPanelMetrics = (workspace: CustomerWorkspace): MetricItem[] =>
   const primaryDomain = getPrimaryDomain(workspace);
   const openSupportCount = getOpenSupportCount(workspace);
   const leadCount = workspace.formRequests.length + workspace.appointmentRequests.length;
+  const annualPayment = getAnnualPayment(workspace);
+  const activationMilestone = getActivationMilestone(workspace, annualPayment);
 
   return [
     {
@@ -177,8 +262,11 @@ export const buildPanelMetrics = (workspace: CustomerWorkspace): MetricItem[] =>
       detail:
         workspace.systemStatus === "active"
           ? "Her sey hazir; sadece iceriklerini guncel tutman yeterli."
-          : "Odeme tamamlandiginda tam aktivasyon akisi devam eder.",
-      tone: toneFromCustomerState(workspace.systemStatus)
+          : activationMilestone.value,
+      tone:
+        workspace.systemStatus === "active"
+          ? toneFromCustomerState(workspace.systemStatus)
+          : activationMilestone.tone
     },
     {
       label: "Domain",
@@ -508,6 +596,9 @@ export const buildBillingInfo = (workspace: CustomerWorkspace): InfoPair[] => {
     ];
   }
 
+  const verificationMilestone = getVerificationMilestone(annualPayment);
+  const activationMilestone = getActivationMilestone(workspace, annualPayment);
+
   return [
     {
       label: "Paket",
@@ -522,19 +613,22 @@ export const buildBillingInfo = (workspace: CustomerWorkspace): InfoPair[] => {
       tone: "warning"
     },
     {
+      label: "Odeme kontrolu",
+      value: verificationMilestone.value,
+      hint: verificationMilestone.hint,
+      tone: verificationMilestone.tone
+    },
+    {
+      label: "Yayin hazirligi",
+      value: activationMilestone.value,
+      hint: activationMilestone.hint,
+      tone: activationMilestone.tone
+    },
+    {
       label: "Odeme durumu",
       value: paymentStateLabel[annualPayment.status],
       hint: `Vade: ${fullDate.format(new Date(annualPayment.dueAt))}`,
       tone: toneFromPaymentState(annualPayment.status)
-    },
-    {
-      label: "Yayin etkisi",
-      value:
-        annualPayment.status === "past_due"
-          ? "Gecikmede yayin beklemeye alinabilir"
-          : "Odeme tamamlaninca tam aktivasyon devam eder",
-      hint: "Veri silinmez, surec kaldigi yerden devam eder",
-      tone: annualPayment.status === "past_due" ? "critical" : "positive"
     }
   ];
 };

@@ -4,6 +4,7 @@ export const auditEventNames = [
   "trial.expired",
   "payment.received",
   "payment.past_due",
+  "site.activated",
   "site.suspended",
   "site.reactivated",
   "support.created",
@@ -21,4 +22,3 @@ export type AuditEvent = {
   occurredAt: string;
   metadata?: Record<string, string | number | boolean>;
 };
-

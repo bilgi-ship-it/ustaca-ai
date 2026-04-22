@@ -224,6 +224,36 @@ const createPayment = (input: {
   paidAt: input.payment_status === "paid" ? now : null,
   suspendedAt: input.payment_status === "past_due" ? now : null,
   is_overdue: input.payment_status === "past_due",
+  payment_workflow_status: input.payment_status,
+  activation_ops_status:
+    input.payment_status === "paid" || input.payment_status === "past_due"
+      ? "activation_completed"
+      : "not_ready",
+  payment_verification_status:
+    input.payment_status === "paid" || input.payment_status === "past_due"
+      ? "verified"
+      : "unverified",
+  payment_verification_source:
+    input.payment_status === "paid" || input.payment_status === "past_due" ? "manual" : null,
+  payment_order_id: null,
+  payment_verification_summary:
+    input.payment_status === "paid"
+      ? "Odeme daha once dogrulandi"
+      : input.payment_status === "past_due"
+        ? "Odeme daha once dogrulandi, daha sonra gecikmeye dustu"
+        : "Odeme kontrol bekliyor",
+  payment_verified_at:
+    input.payment_status === "paid" || input.payment_status === "past_due" ? now : null,
+  payment_last_checked_at:
+    input.payment_status === "paid" || input.payment_status === "past_due" ? now : null,
+  payment_verification_raw: null,
+  activation_ready_at:
+    input.payment_status === "paid" || input.payment_status === "past_due" ? now : null,
+  activation_completed_at:
+    input.payment_status === "paid" || input.payment_status === "past_due" ? now : null,
+  verified_by_user_id: null,
+  verified_by_role: null,
+  manual_note: "",
   invoiceCode: input.invoiceCode,
   invoice_code_key: createAdminFilterKey(input.invoiceCode) ?? input.invoiceCode.toLowerCase(),
   items: input.items,

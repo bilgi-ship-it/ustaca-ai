@@ -7,6 +7,7 @@ import type {
   DomainStatus,
   FormRequest,
   PaymentState,
+  PaymentActivationOpsStatus,
   PaymentStatus,
   PaymentVerificationSource,
   PaymentVerificationState,
@@ -14,7 +15,7 @@ import type {
   RequestState,
   SiteActivationState
 } from "@ustaca/domain";
-import { customerStatusFromPaymentStatus, customerStatusFromTrialStatus } from "@ustaca/domain";
+import { customerStatusFromTrialStatus } from "@ustaca/domain";
 
 import type { UstacaRepositoryBundle } from "./repositories";
 import type {
@@ -57,12 +58,18 @@ const toLegacyPaymentStatus = (status: PaymentStatus): PaymentState => {
 
 type PaymentVerificationFields = Partial<{
   payment_workflow_status: AdminPaymentLedgerItem["rawStatus"];
+  activation_ops_status: PaymentActivationOpsStatus;
   payment_verification_status: PaymentVerificationState;
   payment_verification_source: PaymentVerificationSource | null;
   payment_order_id: string | null;
   payment_verification_summary: string;
   payment_verified_at: string | null;
   payment_last_checked_at: string | null;
+  activation_ready_at: string | null;
+  activation_completed_at: string | null;
+  verified_by_user_id: string | null;
+  verified_by_role: AdminPaymentLedgerItem["verifiedByRole"];
+  manual_note: string;
 }>;
 
 const getPaymentVerificationFields = (payment: PaymentDocument): PaymentVerificationFields =>
@@ -184,7 +191,19 @@ export const buildCustomerWorkspaceProjection = (bundle: CustomerRecordBundle): 
     dueAt: payment.dueAt,
     paidAt: payment.paidAt,
     status: toLegacyPaymentStatus(getEntityStatus(payment, "payment_status")),
-    invoiceCode: payment.invoiceCode
+    invoiceCode: payment.invoiceCode,
+    rawStatus: getPaymentVerificationFields(payment).payment_workflow_status ?? payment.payment_status,
+    activationOpsStatus: getPaymentVerificationFields(payment).activation_ops_status,
+    verificationStatus: getPaymentVerificationFields(payment).payment_verification_status,
+    verificationSource: getPaymentVerificationFields(payment).payment_verification_source ?? null,
+    orderId: getPaymentVerificationFields(payment).payment_order_id ?? null,
+    verificationSummary: getPaymentVerificationFields(payment).payment_verification_summary,
+    verifiedAt: getPaymentVerificationFields(payment).payment_verified_at ?? null,
+    lastCheckedAt: getPaymentVerificationFields(payment).payment_last_checked_at ?? null,
+    activationReadyAt: getPaymentVerificationFields(payment).activation_ready_at ?? null,
+    activationCompletedAt:
+      getPaymentVerificationFields(payment).activation_completed_at ?? null,
+    manualNote: getPaymentVerificationFields(payment).manual_note ?? ""
   })),
   domains: sortDomainsDescending(bundle.domains).map((domain) => ({
     id: domain.id,
@@ -250,9 +269,7 @@ export const buildAdminCustomerProjection = (bundle: CustomerRecordBundle): Admi
     status:
       bundle.trial && getEntityStatus(bundle.trial, "trial_status") === "active"
         ? customerStatusFromTrialStatus(getEntityStatus(bundle.trial, "trial_status"))
-        : primaryPayment
-          ? customerStatusFromPaymentStatus(getEntityStatus(primaryPayment, "payment_status"))
-          : getEntityStatus(bundle.customer, "customer_status"),
+        : getEntityStatus(bundle.customer, "customer_status"),
     domainStatus: primaryDomain ? toLegacyDomainStatus(getEntityStatus(primaryDomain, "domain_status")) : "pending_verification",
     trialEndsAt: bundle.trial?.endsAt ?? bundle.customer.updated_at,
     openTickets
@@ -273,12 +290,24 @@ export const buildAdminPaymentProjection = (
     status: toLegacyPaymentStatus(getEntityStatus(payment, "payment_status")),
     dueAt: payment.dueAt,
     rawStatus: verification.payment_workflow_status ?? payment.payment_status,
+    activationOpsStatus: verification.activation_ops_status,
     verificationStatus: verification.payment_verification_status,
     verificationSource: verification.payment_verification_source ?? null,
     orderId: verification.payment_order_id ?? null,
     verificationSummary: verification.payment_verification_summary,
     verifiedAt: verification.payment_verified_at ?? null,
-    lastCheckedAt: verification.payment_last_checked_at ?? null
+    lastCheckedAt: verification.payment_last_checked_at ?? null,
+    activationReadyAt: verification.activation_ready_at ?? null,
+    activationCompletedAt: verification.activation_completed_at ?? null,
+    verifiedBy: verification.verified_by_user_id ?? null,
+    verifiedByRole: verification.verified_by_role ?? null,
+    manualNote: verification.manual_note ?? "",
+    activationHoldReason:
+      verification.activation_ops_status === "activation_pending_ops"
+        ? "Ops go-live onayi bekleniyor."
+        : verification.activation_ops_status === "not_ready"
+          ? "Odeme dogrulanmadan yayin acilmaz."
+          : ""
   };
 };
 

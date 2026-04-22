@@ -1,12 +1,20 @@
 "use server";
 
-import { createLifecycleService } from "@ustaca/db";
+import {
+  createBackgroundJobService,
+  createConsoleNotificationSender,
+  createLifecycleService
+} from "@ustaca/db";
 import { checkDomainAvailability, registerDomain, verifyPayment } from "@ustaca/lib";
 import { revalidatePath } from "next/cache";
 
+import { requireAdminRole } from "@/lib/auth";
 import { repositories } from "@/lib/data";
 
 const lifecycle = createLifecycleService(repositories);
+const backgroundJobs = createBackgroundJobService(repositories, {
+  sender: createConsoleNotificationSender()
+});
 
 const toStringValue = (value: FormDataEntryValue | null): string => {
   if (typeof value !== "string") return "";
@@ -27,6 +35,15 @@ const revalidateOperational = () => {
   revalidatePath("/trials");
   revalidatePath("/payments");
   revalidatePath("/domains");
+  revalidatePath("/support");
+};
+
+const getAdminLifecycleAudit = async () => {
+  const session = await requireAdminRole(["super_admin", "ops_admin"]);
+  return {
+    actorUserId: session.user.id,
+    actorRole: session.user.role
+  } as const;
 };
 
 export const startTrialAction = async (formData: FormData): Promise<void> => {
@@ -129,6 +146,7 @@ export const verifyPaymentAction = async (formData: FormData): Promise<void> => 
   const tier = toStringValue(formData.get("tier")) || "standard";
   const amountRaw = toStringValue(formData.get("amount"));
   const amount = Number(amountRaw);
+  const manualNote = toStringValue(formData.get("manualNote")) || undefined;
 
   if (!paymentId || !email || !Number.isFinite(amount)) {
     warn("verifyPayment: paymentId, email and amount required");
@@ -144,14 +162,16 @@ export const verifyPaymentAction = async (formData: FormData): Promise<void> => 
   }
 
   try {
+    const audit = await getAdminLifecycleAudit();
     await lifecycle.recordPaymentVerification({
       paymentId,
       source: "api",
       verified: result.verified,
       orderId: result.orderId ?? null,
       summary: result.summary,
-      rawResponse: result.rawResponse
-    });
+      rawResponse: result.rawResponse,
+      manualNote
+    }, audit);
   } catch (error) {
     warn("recordPaymentVerification failed", error);
     return;
@@ -165,6 +185,7 @@ export const manualConfirmPaymentAction = async (formData: FormData): Promise<vo
   const confirm = toStringValue(formData.get("confirm")) === "yes";
   const orderId = toStringValue(formData.get("orderId")) || null;
   const summary = toStringValue(formData.get("summary")) || undefined;
+  const manualNote = toStringValue(formData.get("manualNote")) || undefined;
 
   if (!paymentId) {
     warn("manualConfirmPayment: paymentId required");
@@ -172,15 +193,45 @@ export const manualConfirmPaymentAction = async (formData: FormData): Promise<vo
   }
 
   try {
+    const audit = await getAdminLifecycleAudit();
     await lifecycle.recordPaymentVerification({
       paymentId,
       source: "manual",
       verified: confirm,
       orderId,
-      summary: summary ?? (confirm ? "Manuel dogrulama" : "Manuel inceleme")
-    });
+      summary: summary ?? (confirm ? "Manuel dogrulama" : "Manuel inceleme"),
+      manualNote
+    }, audit);
   } catch (error) {
     warn("manualConfirmPayment failed", error);
+    return;
+  }
+
+  revalidateOperational();
+};
+
+export const approveGoLiveAction = async (formData: FormData): Promise<void> => {
+  const paymentId = toStringValue(formData.get("paymentId"));
+  const summary = toStringValue(formData.get("summary")) || undefined;
+  const manualNote = toStringValue(formData.get("manualNote")) || undefined;
+
+  if (!paymentId) {
+    warn("approveGoLive: paymentId required");
+    return;
+  }
+
+  try {
+    const audit = await getAdminLifecycleAudit();
+    await lifecycle.approveGoLive(
+      {
+        paymentId,
+        summary: summary ?? "Go-live onayi verildi",
+        manualNote
+      },
+      audit
+    );
+  } catch (error) {
+    warn("approveGoLive failed", error);
     return;
   }
 
@@ -198,6 +249,39 @@ export const markPaymentPastDueAction = async (formData: FormData): Promise<void
     await lifecycle.markPaymentPastDue(paymentId);
   } catch (error) {
     warn("markPaymentPastDue failed", error);
+    return;
+  }
+
+  revalidateOperational();
+};
+
+export const runTrialExpirationSweepAction = async (): Promise<void> => {
+  try {
+    await backgroundJobs.runTrialExpirationSweep();
+  } catch (error) {
+    warn("runTrialExpirationSweep failed", error);
+    return;
+  }
+
+  revalidateOperational();
+};
+
+export const runPaymentOverdueSweepAction = async (): Promise<void> => {
+  try {
+    await backgroundJobs.runPaymentOverdueSweep();
+  } catch (error) {
+    warn("runPaymentOverdueSweep failed", error);
+    return;
+  }
+
+  revalidateOperational();
+};
+
+export const processNotificationQueueAction = async (): Promise<void> => {
+  try {
+    await backgroundJobs.processNotificationQueue();
+  } catch (error) {
+    warn("processNotificationQueue failed", error);
     return;
   }
 

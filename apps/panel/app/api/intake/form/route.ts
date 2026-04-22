@@ -93,7 +93,7 @@ export const POST = async (request: Request) => {
   await repositories.notifications.enqueue(
     buildNotificationDocument({
       id: generateId("notif"),
-      eventName: "support_created",
+      eventName: "support.created",
       channel: "email",
       recipient: customer.contact.email,
       subject: `Yeni form talebi: ${service}`,

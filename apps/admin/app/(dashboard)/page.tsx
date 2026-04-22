@@ -5,6 +5,11 @@ import {
   adminModuleHighlights,
   adminRoleGuardrails
 } from "@/lib/content";
+import {
+  processNotificationQueueAction,
+  runPaymentOverdueSweepAction,
+  runTrialExpirationSweepAction
+} from "@/lib/actions";
 import { getAdminMetrics, getCustomerRows, getSupportRows } from "@/lib/data";
 
 export default async function AdminDashboardPage() {
@@ -17,6 +22,38 @@ export default async function AdminDashboardPage() {
   return (
     <div className="page-stack">
       <MetricGrid items={metrics} />
+
+      <SurfaceCard
+        eyebrow="background jobs"
+        title="Operasyonel sweep ve worker tetikleri"
+        description="Cloud scheduler baglanmadan once trial bitisi, odeme gecikmesi ve bildirim kuyrugu ayni repo deseniyle manuel olarak tetiklenebilir."
+      >
+        <div className="route-grid">
+          <form action={runTrialExpirationSweepAction} className="mini-card">
+            <h3>Trial expiration sweep</h3>
+            <p>Vadesi dolmus aktif trial kayitlarini `trial.expired` akisiyla isler.</p>
+            <button className="button-primary" type="submit">
+              Trial sweep calistir
+            </button>
+          </form>
+
+          <form action={runPaymentOverdueSweepAction} className="mini-card">
+            <h3>Payment overdue sweep</h3>
+            <p>Vadesi gecmis odemeleri `payment.past_due` ve gerekirse `site.suspended` akisina tasir.</p>
+            <button className="button-primary" type="submit">
+              Odeme sweep calistir
+            </button>
+          </form>
+
+          <form action={processNotificationQueueAction} className="mini-card">
+            <h3>Notification worker</h3>
+            <p>`queued` bildirimleri console sender ile isler; basari ve retry alanlarini gunceller.</p>
+            <button className="button-secondary" type="submit">
+              Kuyrugu isle
+            </button>
+          </form>
+        </div>
+      </SurfaceCard>
 
       <div className="two-column">
         <SurfaceCard

@@ -7,7 +7,12 @@ import {
   createInMemoryRepositoryBundle,
   firestoreSeedData
 } from "@ustaca/db";
-import type { CustomerDataBundle, PaymentVerificationState, ProductModule } from "@ustaca/domain";
+import type {
+  CustomerDataBundle,
+  PaymentActivationOpsStatus,
+  PaymentVerificationState,
+  ProductModule
+} from "@ustaca/domain";
 import type { InfoPair, MetricItem, NavItem } from "@ustaca/types";
 
 import {
@@ -60,6 +65,46 @@ const getVerificationLabel = (state?: PaymentVerificationState, source?: string 
 
   const sourceLabel = source === "manual" ? "Manuel" : source === "api" ? "API" : "Kaynak yok";
   return `${paymentVerificationStateLabel[state]} · ${sourceLabel}`;
+};
+
+const getActivationOpsLabel = (state?: PaymentActivationOpsStatus) => {
+  if (!state) {
+    return "Hazirlik kaydi yok";
+  }
+
+  if (state === "activation_completed") {
+    return "Yayin aktif";
+  }
+
+  if (state === "activation_pending_ops") {
+    return "Ops onayi bekliyor";
+  }
+
+  return "Odeme dogrulanmadi";
+};
+
+const getActivationOpsTone = (state?: PaymentActivationOpsStatus) => {
+  if (!state) {
+    return "neutral" as const;
+  }
+
+  if (state === "activation_completed") {
+    return "positive" as const;
+  }
+
+  if (state === "activation_pending_ops") {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
+};
+
+const getVerifiedByLabel = (verifiedBy?: string | null, verifiedByRole?: string | null) => {
+  if (!verifiedBy) {
+    return "Kayit yok";
+  }
+
+  return verifiedByRole ? `${verifiedBy} · ${verifiedByRole}` : verifiedBy;
 };
 
 const getPrimaryPayment = (bundle: CustomerDataBundle) =>
@@ -236,14 +281,24 @@ export const getPaymentRows = async () => {
           stateLabel: paymentStateLabel[row.status],
           stateTone: toneFromPaymentState(row.status),
           dueAt: shortDate.format(new Date(row.dueAt)),
-          actionLabel: row.status === "past_due" ? "Yayini askiya al / ac" : "Taksit akisini guncelle",
+          actionLabel:
+            row.status === "past_due"
+              ? "Yayini askiya al / ac"
+              : row.activationOpsStatus === "activation_pending_ops"
+                ? "Go-live onayi bekliyor"
+                : "Taksit akisini guncelle",
           verificationLabel: getVerificationLabel(
             row.verificationStatus,
             row.verificationSource ?? null
           ),
           verificationTone: toneFromPaymentVerificationState(row.verificationStatus),
+          activationLabel: getActivationOpsLabel(row.activationOpsStatus),
+          activationTone: getActivationOpsTone(row.activationOpsStatus),
+          activationHoldReason: row.activationHoldReason ?? "Ek bekleme notu yok",
           verificationSummary: row.verificationSummary ?? "API veya manuel kontrol kaydi bekleniyor",
           orderId: row.orderId ?? "Kayit yok",
+          verifiedBy: getVerifiedByLabel(row.verifiedBy, row.verifiedByRole),
+          manualNote: row.manualNote || "Manuel not yok",
           href: `/customers/${customer.id}`
         };
       });
@@ -444,6 +499,8 @@ export const getAdminCustomerDetail = async (customerId: string) => {
       paymentId: primaryPayment?.id ?? null,
       paymentAmount: primaryPayment?.totalAmount ?? null,
       paymentStatus: primaryPayment?.payment_status ?? null,
+      paymentWorkflowStatus: primaryPaymentProjection?.rawStatus ?? null,
+      activationOpsStatus: primaryPaymentProjection?.activationOpsStatus ?? null,
       ownerEmail: bundle.user.email,
       domainId: primaryDomain?.id ?? null,
       domainHostname: primaryDomain?.requestedHostname ?? bundle.customer.targetDomain,
@@ -543,7 +600,7 @@ export const getAdminCustomerDetail = async (customerId: string) => {
           {
             label: "Odeme durumu",
             value: paymentStateLabel[primaryPaymentProjection.status],
-            hint: `Ham status: ${primaryPayment.payment_status}`,
+            hint: `Workflow: ${primaryPaymentProjection.rawStatus ?? primaryPayment.payment_status}`,
             tone: toneFromPaymentState(primaryPaymentProjection.status)
           },
           {
@@ -563,10 +620,38 @@ export const getAdminCustomerDetail = async (customerId: string) => {
             tone: toneFromPaymentVerificationState(primaryPaymentProjection.verificationStatus)
           },
           {
-            label: "Siparis / fatura",
-            value: primaryPaymentProjection.orderId ?? primaryPayment.invoiceCode,
+            label: "Aktivasyon ops",
+            value: getActivationOpsLabel(primaryPaymentProjection.activationOpsStatus),
+            hint:
+              primaryPaymentProjection.activationHoldReason ||
+              "Yayin acilisi icin ek operasyon beklemiyor",
+            tone: getActivationOpsTone(primaryPaymentProjection.activationOpsStatus)
+          },
+          {
+            label: "Dogrulayan",
+            value: getVerifiedByLabel(
+              primaryPaymentProjection.verifiedBy,
+              primaryPaymentProjection.verifiedByRole
+            ),
+            hint:
+              primaryPaymentProjection.verifiedAt
+                ? `Dogrulama tarihi: ${fullDate.format(new Date(primaryPaymentProjection.verifiedAt))}`
+                : "Dogrulama zamani henuz kayitli degil",
+            tone: primaryPaymentProjection.verifiedBy ? "positive" : "neutral"
+          },
+          {
+            label: "Manuel not",
+            value: primaryPaymentProjection.manualNote || "Ops notu yok",
+            hint: primaryPaymentProjection.orderId ?? primaryPayment.invoiceCode,
+            tone: primaryPaymentProjection.manualNote ? "warning" : "neutral"
+          },
+          {
+            label: "Aktivasyon hold",
+            value:
+              primaryPaymentProjection.activationHoldReason ||
+              "Aktivasyon bloklayan acik neden yok",
             hint: `Vade: ${fullDate.format(new Date(primaryPayment.dueAt))}`,
-            tone: "neutral"
+            tone: primaryPaymentProjection.activationHoldReason ? "warning" : "positive"
           }
         ] satisfies InfoPair[]
       : [

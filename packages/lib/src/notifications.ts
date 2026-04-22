@@ -6,17 +6,17 @@ import type {
 import { createEntityTimestamps } from "@ustaca/domain";
 
 export type NotificationEventName =
-  | "user_registered"
-  | "trial_started"
-  | "trial_expired"
-  | "payment_received"
-  | "payment_past_due"
-  | "site_suspended"
-  | "site_reactivated"
-  | "support_created"
-  | "special_project_flagged"
-  | "site_generation_failed"
-  | "domain_issue_detected";
+  | "user.registered"
+  | "trial.started"
+  | "trial.expired"
+  | "payment.received"
+  | "payment.past_due"
+  | "site.activated"
+  | "site.suspended"
+  | "support.created"
+  | "special_project.flagged"
+  | "site_generation.failed"
+  | "domain.issue_detected";
 
 export type NotificationDraft = {
   id: string;

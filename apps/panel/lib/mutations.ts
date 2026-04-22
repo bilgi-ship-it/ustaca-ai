@@ -6,13 +6,19 @@ import {
   type AiAssistantEntity,
   type AuditLogEntity,
   type CustomerEntity,
-  type NotificationEntity,
   type SupportTicketEntity,
   type UserRole
 } from "@ustaca/domain";
-import type { AiAssistantDocument, CustomerRecordBundle, SiteDocument } from "@ustaca/db";
+import {
+  createEventProcessingService,
+  type AiAssistantDocument,
+  type CustomerRecordBundle,
+  type SiteDocument
+} from "@ustaca/db";
 
 import { dataAccess, repositories } from "@/lib/data";
+
+const eventProcessing = createEventProcessingService(repositories);
 
 type MutationActor = {
   userId: string;
@@ -475,44 +481,20 @@ export const panelMutationService = {
       ...createEntityTimestamps(timestamp)
     };
 
-    const notification: NotificationEntity = {
-      id: createId("notification"),
-      status: "queued",
-      customer_id: input.customerId,
-      customerId: input.customerId,
-      site_id: bundle.site.id,
-      siteId: bundle.site.id,
-      user_id: input.actor.userId,
-      userId: input.actor.userId,
-      channel: "email",
-      eventName: "support_ticket_created",
-      event_name_key: "support_ticket_created",
-      notification_status: "queued",
-      recipient: input.notificationRecipient,
-      recipient_key: createAdminFilterKey(input.notificationRecipient) ?? input.notificationRecipient,
-      subject: `Yeni destek talebi · ${bundle.customer.businessName}`,
-      attemptCount: 0,
-      lastAttemptAt: null,
-      sentAt: null,
-      payload: {
-        ticketId,
-        customerId: input.customerId,
-        businessName: bundle.customer.businessName,
-        subject: input.subject,
-        category: input.category,
-        priority: input.priority
-      },
-      ...createEntityTimestamps(timestamp)
-    };
+    await repositories.supportTickets.upsert(ticket);
 
     await Promise.all([
-      repositories.supportTickets.upsert(ticket),
-      repositories.notifications.enqueue(notification),
+      eventProcessing.processSupportCreated({
+        ticketId,
+        recipient: input.notificationRecipient,
+        actorUserId: input.actor.userId,
+        occurredAt: timestamp
+      }),
       appendAuditLog({
         actor: input.actor,
         customerId: input.customerId,
         siteId: bundle.site.id,
-        action: "customer_support_ticket_created",
+        action: "support.created",
         targetCollection: "support_tickets",
         targetId: ticketId,
         summary: "Musteri panelinden yeni bir destek kaydi olusturuldu.",

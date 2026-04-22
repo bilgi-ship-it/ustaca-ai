@@ -22,6 +22,11 @@ export const paymentWorkflowStatusSchema = z.enum([
   "payment_confirmed",
   "payment_under_review"
 ]);
+export const paymentActivationOpsStatusSchema = z.enum([
+  "not_ready",
+  "activation_pending_ops",
+  "activation_completed"
+]);
 export const paymentVerificationStateSchema = z.enum([
   "unverified",
   "pending_api_check",
@@ -30,6 +35,7 @@ export const paymentVerificationStateSchema = z.enum([
   "failed"
 ]);
 export const paymentVerificationSourceSchema = z.enum(["api", "manual"]);
+export const paymentVerifierRoleSchema = z.enum(["system", "super_admin", "ops_admin", "customer"]);
 export const ticketPrioritySchema = z.enum(["low", "medium", "high"]);
 export const ticketStateSchema = z.enum([
   "open",
@@ -81,12 +87,16 @@ export const paymentRecordSchema = z.object({
   status: paymentStateSchema,
   invoiceCode: z.string(),
   rawStatus: paymentWorkflowStatusSchema.optional(),
+  activationOpsStatus: paymentActivationOpsStatusSchema.optional(),
   verificationStatus: paymentVerificationStateSchema.optional(),
   verificationSource: paymentVerificationSourceSchema.nullable().optional(),
   orderId: z.string().nullable().optional(),
   verificationSummary: z.string().optional(),
   verifiedAt: z.string().nullable().optional(),
-  lastCheckedAt: z.string().nullable().optional()
+  lastCheckedAt: z.string().nullable().optional(),
+  activationReadyAt: z.string().nullable().optional(),
+  activationCompletedAt: z.string().nullable().optional(),
+  manualNote: z.string().optional()
 });
 
 export const domainRecordSchema = z.object({
@@ -251,12 +261,19 @@ export const adminPaymentLedgerItemSchema = z.object({
   status: paymentStateSchema,
   dueAt: z.string(),
   rawStatus: paymentWorkflowStatusSchema.optional(),
+  activationOpsStatus: paymentActivationOpsStatusSchema.optional(),
   verificationStatus: paymentVerificationStateSchema.optional(),
   verificationSource: paymentVerificationSourceSchema.nullable().optional(),
   orderId: z.string().nullable().optional(),
   verificationSummary: z.string().optional(),
   verifiedAt: z.string().nullable().optional(),
-  lastCheckedAt: z.string().nullable().optional()
+  lastCheckedAt: z.string().nullable().optional(),
+  activationReadyAt: z.string().nullable().optional(),
+  activationCompletedAt: z.string().nullable().optional(),
+  verifiedBy: z.string().nullable().optional(),
+  verifiedByRole: paymentVerifierRoleSchema.nullable().optional(),
+  manualNote: z.string().optional(),
+  activationHoldReason: z.string().optional()
 });
 
 export const adminDomainOverviewItemSchema = z.object({
@@ -282,8 +299,10 @@ export type CustomerState = z.infer<typeof customerStateSchema>;
 export type DomainState = z.infer<typeof domainStateSchema>;
 export type PaymentState = z.infer<typeof paymentStateSchema>;
 export type PaymentWorkflowStatus = z.infer<typeof paymentWorkflowStatusSchema>;
+export type PaymentActivationOpsStatus = z.infer<typeof paymentActivationOpsStatusSchema>;
 export type PaymentVerificationState = z.infer<typeof paymentVerificationStateSchema>;
 export type PaymentVerificationSource = z.infer<typeof paymentVerificationSourceSchema>;
+export type PaymentVerifierRole = z.infer<typeof paymentVerifierRoleSchema>;
 export type TicketState = z.infer<typeof ticketStateSchema>;
 export type RequestState = z.infer<typeof requestStateSchema>;
 export type SiteActivationState = z.infer<typeof siteActivationStateSchema>;
