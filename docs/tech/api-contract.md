@@ -29,4 +29,11 @@
 
 - `POST /api/whatsapp/webhook`
   - WhatsApp Cloud API event payload'ini JSON olarak kabul eder.
-  - Su an icin payload saklanmaz; endpoint sadece alimi dogrulayan bir acknowledgement doner.
+  - Endpoint event'i aldigini `success: true` ile acknowledge eder.
+
+#### WhatsApp Message Send
+
+- `POST /api/whatsapp/messages`
+  - Body: `{ "to": "+905xxxxxxxxx", "body": "Merhaba" }`
+  - `WHATSAPP_TOKEN` ve `WHATSAPP_PHONE_NUMBER_ID` env degiskenleri zorunludur.
+  - Meta Graph API `/{PHONE_NUMBER_ID}/messages` endpoint'ine text message gonderir.
