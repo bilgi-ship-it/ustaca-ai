@@ -5,6 +5,7 @@ cases:
   - id: allow-lint
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm run lint
     expect:
       effect: allow
@@ -13,6 +14,7 @@ cases:
   - id: allow-typecheck
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm run typecheck
     expect:
       effect: allow
@@ -21,6 +23,7 @@ cases:
   - id: allow-local-build
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm run build
     expect:
       effect: allow
@@ -29,6 +32,7 @@ cases:
   - id: approve-dependency-install
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm install example-package
     expect:
       effect: approval
@@ -37,6 +41,7 @@ cases:
   - id: approve-remote-change
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: git push origin main
     expect:
       effect: approval
@@ -45,14 +50,24 @@ cases:
   - id: deny-package-publish
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm publish
     expect:
       effect: deny
       rule_id: deny-public-package-publish
 
+  - id: missing-repository-context-uses-default
+    action:
+      type: shell
+      command: npm run lint
+    expect:
+      effect: approval
+      rule_id: null
+
   - id: unmatched-command-uses-default
     action:
       type: shell
+      repository: bilgi-ship-it/ustaca-ai
       command: npm run dev:web
     expect:
       effect: approval
