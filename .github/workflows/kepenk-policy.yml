@@ -23,7 +23,7 @@ jobs:
 
       - name: Validate policy
         id: validate
-        uses: bilgi-ship-it/kepenk@v0.3.0
+        uses: bilgi-ship-it/kepenk@v0.4.0
         with:
           mode: validate
           policy: .kepenk/policy.yaml
@@ -34,9 +34,16 @@ jobs:
           kepenk --policy .kepenk/policy.yaml test
           --tests .kepenk/policy.tests.yaml
 
+      - name: Validate founding-team adoption evidence
+        shell: bash
+        run: >-
+          kepenk validate-adoption
+          --evidence .kepenk/adoption.json
+          --json
+
       - name: Allow routine linting
         id: lint
-        uses: bilgi-ship-it/kepenk@v0.3.0
+        uses: bilgi-ship-it/kepenk@v0.4.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
@@ -47,7 +54,7 @@ jobs:
       - name: Require approval for dependency changes
         id: dependency
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@v0.3.0
+        uses: bilgi-ship-it/kepenk@v0.4.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
@@ -58,7 +65,7 @@ jobs:
       - name: Deny public package publication
         id: publish
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@v0.3.0
+        uses: bilgi-ship-it/kepenk@v0.4.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
