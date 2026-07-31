@@ -69,13 +69,15 @@ Uygulamalar Next.js App Router üzerinden ayrık çalışır:
 
 Bu depo, Kepenk’in founding-team pilotlarından biridir. Depoya özel politika ve beklenen kararlar [`.kepenk/`](.kepenk/README.md) altında tutulur.
 
-[`Kepenk policy`](.github/workflows/kepenk-policy.yml) workflow’u doğrulanmış `v0.2.0` GitHub Action’ını kullanarak:
+[`Kepenk policy`](.github/workflows/kepenk-policy.yml) workflow’u doğrulanmış `v0.2.1` GitHub Action’ını kullanarak:
 
 - politika dosyasını doğrular;
 - rutin lint işleminin `allow` kararı aldığını;
 - bağımlılık değişikliğinin `approval` kararı aldığını;
 - açık paket yayınının `deny` kararı aldığını;
 - sonuç alanları ile workflow sonuçlarının birbiriyle uyumlu olduğunu kontrol eder.
+
+`v0.2.1`, Python bağımlılık dosyası bulunmayan npm/Turborepo depolarında Action kurulumu için gerekli taşınabilirlik düzeltmesini içerir.
 
 Bu pilot bağımsız benimsenme olarak sayılmaz; Kepenk kurucu ekibi tarafından yönetilen açık bir entegrasyon örneğidir.
 
