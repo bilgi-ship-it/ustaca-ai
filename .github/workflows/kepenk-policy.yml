@@ -23,14 +23,14 @@ jobs:
 
       - name: Validate policy
         id: validate
-        uses: bilgi-ship-it/kepenk@fe2e7fbcb4c63c5a0db6a554dc3d039f66b5d5f2
+        uses: bilgi-ship-it/kepenk@v0.2.1
         with:
           mode: validate
           policy: .kepenk/policy.yaml
 
       - name: Allow routine linting
         id: lint
-        uses: bilgi-ship-it/kepenk@fe2e7fbcb4c63c5a0db6a554dc3d039f66b5d5f2
+        uses: bilgi-ship-it/kepenk@v0.2.1
         with:
           mode: check
           policy: .kepenk/policy.yaml
@@ -40,7 +40,7 @@ jobs:
       - name: Require approval for dependency changes
         id: dependency
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@fe2e7fbcb4c63c5a0db6a554dc3d039f66b5d5f2
+        uses: bilgi-ship-it/kepenk@v0.2.1
         with:
           mode: check
           policy: .kepenk/policy.yaml
@@ -50,7 +50,7 @@ jobs:
       - name: Deny public package publication
         id: publish
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@fe2e7fbcb4c63c5a0db6a554dc3d039f66b5d5f2
+        uses: bilgi-ship-it/kepenk@v0.2.1
         with:
           mode: check
           policy: .kepenk/policy.yaml
