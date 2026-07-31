@@ -23,38 +23,47 @@ jobs:
 
       - name: Validate policy
         id: validate
-        uses: bilgi-ship-it/kepenk@v0.2.1
+        uses: bilgi-ship-it/kepenk@v0.3.0
         with:
           mode: validate
           policy: .kepenk/policy.yaml
 
+      - name: Run repository policy regression suite
+        shell: bash
+        run: >-
+          kepenk --policy .kepenk/policy.yaml test
+          --tests .kepenk/policy.tests.yaml
+
       - name: Allow routine linting
         id: lint
-        uses: bilgi-ship-it/kepenk@v0.2.1
+        uses: bilgi-ship-it/kepenk@v0.3.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
           action_type: shell
+          repository: ${{ github.repository }}
           command: npm run lint
 
       - name: Require approval for dependency changes
         id: dependency
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@v0.2.1
+        uses: bilgi-ship-it/kepenk@v0.3.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
           action_type: shell
+          repository: ${{ github.repository }}
           command: npm install example-package
 
       - name: Deny public package publication
         id: publish
         continue-on-error: true
-        uses: bilgi-ship-it/kepenk@v0.2.1
+        uses: bilgi-ship-it/kepenk@v0.3.0
         with:
           mode: check
           policy: .kepenk/policy.yaml
           action_type: shell
+          repository: ${{ github.repository }}
           command: npm publish
 
       - name: Verify decision outputs
