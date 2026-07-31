@@ -6,7 +6,8 @@ This directory contains the public founding-team pilot of Kepenk for the Ustaca 
 
 - `policy.yaml`: repository-specific deterministic policy using explicit repository context;
 - `policy.tests.yaml`: expected decisions for routine, sensitive, prohibited, missing-context, and unmatched actions;
-- `.github/workflows/kepenk-policy.yml`: CI verification using the pinned public `v0.3.0` Kepenk GitHub Action and policy test command.
+- `adoption.json`: version-1 offline public evidence classified as `founding_team_pilot`;
+- `.github/workflows/kepenk-policy.yml`: CI verification using the pinned public `v0.4.0` Kepenk GitHub Action, policy tests, and adoption-evidence validator.
 
 ## Current decisions
 
@@ -23,12 +24,15 @@ When repository context is omitted or different, repository-scoped rules do not 
 The CI workflow:
 
 1. validates the policy;
-2. runs the complete declarative policy regression suite;
-3. checks representative allow, approval, and deny outputs through the GitHub Action;
-4. verifies both decision fields and expected non-success outcomes for approval and deny.
+2. runs the complete eight-case declarative policy regression suite;
+3. validates `adoption.json` locally without telemetry or URL fetching;
+4. checks representative allow, approval, and deny outputs through the GitHub Action;
+5. verifies both decision fields and expected non-success outcomes for approval and deny.
 
-The `v0.3.0` release is installed and executed inside this npm/Turborepo repository, which has no Python project metadata. This continues to verify the non-Python consumer portability fixed in v0.2.1 while also exercising v0.3 repository context and policy tests.
+The `v0.4.0` release is installed and executed inside this npm/Turborepo repository, which has no Python project metadata. This continues to verify the non-Python consumer portability fixed in v0.2.1, v0.3 repository context and policy tests, and v0.4 offline evidence validation.
+
+A valid adoption manifest proves only that the checked-in JSON has the documented structure. It does not prove repository ownership, maintainer identity, URL availability, production security, complete policy coverage, or independent adoption. The repository and Kepenk registry still require human review and explicit maintainer consent.
 
 This pilot does not make Kepenk a sandbox, authenticate the repository value, or grant permission to perform an action. The surrounding workflow definition, repository permissions, branch rules, credentials, reviews, runner, and execution environment remain authoritative.
 
-The pilot is a founding-team integration. It must not be reported as independent adoption.
+The pilot is a founding-team integration. It must not be reported as independent adoption or outside contribution.
