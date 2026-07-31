@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bilgi-ship-it/kepenk/main/schemas/kepenk-policy-v1.schema.json
+version: 1
+default: approval
+
+audit:
+  path: .kepenk/audit.jsonl
+
+rules:
+  - id: deny-public-package-publish
+    effect: deny
+    reason: This private monorepo is not published as a public package.
+    match:
+      action: shell
+      command_regex: '(^|\s)(npm|pnpm|yarn)\s+publish(\s|$)'
+
+  - id: allow-lint
+    effect: allow
+    reason: Repository linting is a routine local verification step.
+    match:
+      action: shell
+      command_regex: '^npm\s+run\s+lint(\s|$)'
+
+  - id: allow-typecheck
+    effect: allow
+    reason: Type checking is a routine local verification step.
+    match:
+      action: shell
+      command_regex: '^npm\s+run\s+typecheck(\s|$)'
+
+  - id: allow-local-build
+    effect: allow
+    reason: The monorepo build is allowed as a local verification step.
+    match:
+      action: shell
+      command_regex: '^npm\s+run\s+build(\s|$)'
+
+  - id: require-dependency-change-approval
+    effect: approval
+    reason: Dependency changes modify the lockfile or installed package graph.
+    match:
+      action: shell
+      command_regex: '^npm\s+(install|update|uninstall)(\s|$)'
+
+  - id: require-remote-git-change-approval
+    effect: approval
+    reason: Remote repository changes require explicit maintainer approval.
+    match:
+      action: shell
+      command_regex: '^git\s+push(\s|$)'
