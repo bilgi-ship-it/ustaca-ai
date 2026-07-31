@@ -11,6 +11,7 @@ rules:
     reason: This private monorepo is not published as a public package.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '(^|\s)(npm|pnpm|yarn)\s+publish(\s|$)'
 
   - id: allow-lint
@@ -18,6 +19,7 @@ rules:
     reason: Repository linting is a routine local verification step.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '^npm\s+run\s+lint(\s|$)'
 
   - id: allow-typecheck
@@ -25,6 +27,7 @@ rules:
     reason: Type checking is a routine local verification step.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '^npm\s+run\s+typecheck(\s|$)'
 
   - id: allow-local-build
@@ -32,6 +35,7 @@ rules:
     reason: The monorepo build is allowed as a local verification step.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '^npm\s+run\s+build(\s|$)'
 
   - id: require-dependency-change-approval
@@ -39,6 +43,7 @@ rules:
     reason: Dependency changes modify the lockfile or installed package graph.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '^npm\s+(install|update|uninstall)(\s|$)'
 
   - id: require-remote-git-change-approval
@@ -46,4 +51,5 @@ rules:
     reason: Remote repository changes require explicit maintainer approval.
     match:
       action: shell
+      repository_glob: bilgi-ship-it/ustaca-ai
       command_regex: '^git\s+push(\s|$)'
