@@ -1,0 +1,81 @@
+name: Kepenk policy
+
+on:
+  pull_request:
+    paths:
+      - .kepenk/**
+      - .github/workflows/kepenk-policy.yml
+  push:
+    branches: [main]
+    paths:
+      - .kepenk/**
+      - .github/workflows/kepenk-policy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate policy
+        id: validate
+        uses: bilgi-ship-it/kepenk@v0.2.0
+        with:
+          mode: validate
+          policy: .kepenk/policy.yaml
+
+      - name: Allow routine linting
+        id: lint
+        uses: bilgi-ship-it/kepenk@v0.2.0
+        with:
+          mode: check
+          policy: .kepenk/policy.yaml
+          action_type: shell
+          command: npm run lint
+
+      - name: Require approval for dependency changes
+        id: dependency
+        continue-on-error: true
+        uses: bilgi-ship-it/kepenk@v0.2.0
+        with:
+          mode: check
+          policy: .kepenk/policy.yaml
+          action_type: shell
+          command: npm install example-package
+
+      - name: Deny public package publication
+        id: publish
+        continue-on-error: true
+        uses: bilgi-ship-it/kepenk@v0.2.0
+        with:
+          mode: check
+          policy: .kepenk/policy.yaml
+          action_type: shell
+          command: npm publish
+
+      - name: Verify decision outputs
+        shell: bash
+        env:
+          VALID: ${{ steps.validate.outputs.valid }}
+          LINT_EFFECT: ${{ steps.lint.outputs.effect }}
+          LINT_RULE: ${{ steps.lint.outputs.rule_id }}
+          DEPENDENCY_EFFECT: ${{ steps.dependency.outputs.effect }}
+          DEPENDENCY_RULE: ${{ steps.dependency.outputs.rule_id }}
+          DEPENDENCY_OUTCOME: ${{ steps.dependency.outcome }}
+          PUBLISH_EFFECT: ${{ steps.publish.outputs.effect }}
+          PUBLISH_RULE: ${{ steps.publish.outputs.rule_id }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+        run: |
+          test "${VALID}" = "true"
+          test "${LINT_EFFECT}" = "allow"
+          test "${LINT_RULE}" = "allow-lint"
+          test "${DEPENDENCY_EFFECT}" = "approval"
+          test "${DEPENDENCY_RULE}" = "require-dependency-change-approval"
+          test "${DEPENDENCY_OUTCOME}" = "failure"
+          test "${PUBLISH_EFFECT}" = "deny"
+          test "${PUBLISH_RULE}" = "deny-public-package-publish"
+          test "${PUBLISH_OUTCOME}" = "failure"
